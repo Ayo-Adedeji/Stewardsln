@@ -1,9 +1,10 @@
 import SignIn from "@/components/others/auth/sign-in";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Next.js SignIn Page | TailAdmin - Next.js Dashboard Template",
-  description: "This is Next.js Signin Page TailAdmin Dashboard Template",
+  title: "Administrator Sign In",
+  description:
+    "Sign in to the Light Nation Ibadan Church Attendance Management System.",
 };
 
 export default function SignInPage() {

@@ -1,51 +1,44 @@
 "use client";
 
-import GridShape from "@/components/common/grid-shape";
+import BrandLogo from "@/components/shared/brand-logo";
+import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
-import { useTranslations } from "next-intl";
-import Image from "next/image";
 
 export default function NotFound() {
-  const t = useTranslations("notFound");
-
   return (
-    <div className="relative z-1 flex min-h-screen flex-col items-center justify-center overflow-hidden p-6">
-      <GridShape />
-      <div className="mx-auto w-full max-w-60.5 text-center sm:max-w-118">
-        <h1 className="text-title-md xl:text-title-2xl mb-8 font-bold text-gray-800 dark:text-white/90">
-          {t("error")}
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-(--ln-bg-canvas) p-6 text-center">
+      <div className="mx-auto max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-theme-sm neutral:border-[#c8c2b6] neutral:bg-[#f5f3ef] dark:border-gray-800 dark:bg-[#151921]">
+        <div className="mb-6 flex justify-center">
+          <BrandLogo size="md" href="/" />
+        </div>
+        <span className="inline-block rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold tracking-wider text-brand-700 uppercase dark:bg-brand-500/15 dark:text-brand-300">
+          404 — Page Not Found
+        </span>
+        <h1 className="mt-3 text-2xl font-bold text-gray-900 dark:text-white">
+          Resource Not Found
         </h1>
-
-        <Image
-          src="/images/error/404.svg"
-          alt="404"
-          className="dark:hidden"
-          width={472}
-          height={152}
-        />
-        <Image
-          src="/images/error/404-dark.svg"
-          alt="404"
-          className="hidden dark:block"
-          width={472}
-          height={152}
-        />
-
-        <p className="mt-10 mb-6 text-base text-gray-700 sm:text-lg dark:text-gray-400">
-          {t("message")}
+        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+          The page or attendance link you requested could not be found in the
+          Light Nation Ibadan system.
         </p>
-
-        <Link
-          href="/"
-          className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-5 py-3.5 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/3 dark:hover:text-gray-200"
-        >
-          {t("backHome")}
-        </Link>
+        <div className="mt-6 flex flex-col justify-center gap-2.5 sm:flex-row">
+          <Button
+            backArrow
+            nativeButton={false}
+            render={<Link href="/" />}
+          >
+            Back to Dashboard
+          </Button>
+          <Button
+            variant="outline"
+            leadingArrow
+            nativeButton={false}
+            render={<Link href="/attend/ln-ibd-sun1-nov01" />}
+          >
+            Public Check-In
+          </Button>
+        </div>
       </div>
-      {/* <!-- Footer --> */}
-      <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center text-sm text-gray-500 dark:text-gray-400">
-        &copy; {new Date().getFullYear()} - TailAdmin
-      </p>
     </div>
   );
 }

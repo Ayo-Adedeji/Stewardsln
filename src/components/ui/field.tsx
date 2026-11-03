@@ -82,12 +82,14 @@ interface FieldProps
   extends React.ComponentProps<"div">,
     VariantProps<typeof fieldVariants> {
   controlId?: string;
+  invalid?: boolean;
 }
 
 function Field({
   className,
   orientation = "vertical",
   controlId,
+  invalid,
   id: divId,
   children,
   ...props
@@ -103,6 +105,7 @@ function Field({
         id={divId}
         data-slot="field"
         data-orientation={orientation}
+        data-invalid={invalid ? "true" : undefined}
         className={cn(fieldVariants({ orientation }), className)}
         {...props}
       >
@@ -253,7 +256,7 @@ function FieldError({
       role="alert"
       data-slot="field-error"
       className={cn(
-        "text-sm font-normal text-red-500 dark:text-red-400",
+        "text-xs font-normal text-red-500 dark:text-red-400",
         className,
       )}
       {...props}

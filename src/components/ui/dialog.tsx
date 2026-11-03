@@ -56,7 +56,7 @@ function DialogContent({
         className={cn(
           fullScreen
             ? "fixed inset-0 z-101 flex flex-col justify-between w-screen h-dvh max-w-none rounded-none border-none bg-white p-6 sm:p-10 text-sm text-gray-700 shadow-none duration-100 outline-none overflow-y-auto data-closed:animate-out data-closed:fade-out-0 data-open:animate-in data-open:fade-in-0 dark:bg-[#1E2635] dark:text-gray-300"
-            : "fixed inset-s-1/2 top-1/2 z-101 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-700 shadow-theme-lg duration-100 outline-none data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 sm:max-w-lg rtl:translate-x-1/2 dark:border-gray-800 dark:bg-[#1E2635] dark:text-gray-300",
+            : "fixed left-1/2 top-1/2 z-101 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 text-sm text-gray-700 shadow-theme-lg duration-100 outline-none max-h-[calc(100dvh-2rem)] overflow-y-auto overflow-x-hidden custom-scrollbar data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 dark:border-gray-800 dark:bg-[#1E2635] dark:text-gray-300",
           className,
         )}
         {...props}
