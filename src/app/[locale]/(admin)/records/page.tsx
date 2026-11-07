@@ -1,5 +1,6 @@
 import AttendanceRecordsView from "@/components/attendance/records-view";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Attendance Records",
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function AttendanceRecordsPage() {
-  return <AttendanceRecordsView />;
+  return (
+    <Suspense fallback={null}>
+      <AttendanceRecordsView />
+    </Suspense>
+  );
 }

@@ -49,8 +49,8 @@ const departmentSchema = z.object({
     .max(80, "Department name is too long."),
   code: z
     .string()
-    .min(2, "Code must be 2–6 characters.")
-    .max(6, "Code must be 2–6 characters."),
+    .min(2, "Code must be 2–10 characters.")
+    .max(10, "Code must be 2–10 characters."),
   leaderName: z
     .string()
     .min(2, "Please provide the department leader or coordinator name."),
@@ -136,6 +136,35 @@ export default function DepartmentsView() {
 
   const onSubmit = async (values: DepartmentFormValues) => {
     setModalError(null);
+
+    // Duplicate check client-side
+    const normName = values.name.trim().replace(/\s+/g, " ").toLowerCase();
+    const normCode = values.code.trim().toUpperCase();
+
+    const isDupName = departments.some(
+      (d) =>
+        (!editingDepartment || d.id !== editingDepartment.id) &&
+        d.name.trim().replace(/\s+/g, " ").toLowerCase() === normName,
+    );
+    if (isDupName) {
+      setModalError(
+        `A department named "${values.name.trim()}" already exists. Department names must be unique.`,
+      );
+      return;
+    }
+
+    const isDupCode = departments.some(
+      (d) =>
+        (!editingDepartment || d.id !== editingDepartment.id) &&
+        d.code.trim().toUpperCase() === normCode,
+    );
+    if (isDupCode) {
+      setModalError(
+        `A department with code "${normCode}" already exists.`,
+      );
+      return;
+    }
+
     try {
       if (editingDepartment) {
         await updateDepartment(editingDepartment.id, values);
@@ -402,7 +431,13 @@ export default function DepartmentsView() {
                             title="Delete department"
                             aria-label={`Delete ${dept.name}`}
                             onClick={() => {
-                              void deleteDepartment(dept.id);
+                              if (
+                                window.confirm(
+                                  `Are you sure you want to remove "${dept.name}"? If you only wish to stop new registrations from selecting it, you can toggle its status off (deactivate) instead. Historical attendance records will remain preserved.`,
+                                )
+                              ) {
+                                void deleteDepartment(dept.id);
+                              }
                             }}
                             className="text-(--ln-fg-muted) hover:text-red-600 dark:hover:text-red-400"
                           >

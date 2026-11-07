@@ -32,7 +32,11 @@ import type {
   FormFieldDefinition,
   PublicRegistrationState,
 } from "@/types/attendance";
-import { formatDisplayDate, formatTime12h } from "@/utils";
+import {
+  CENTRAL_CHURCH_DEPARTMENTS,
+  formatDisplayDate,
+  formatTime12h,
+} from "@/utils";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
@@ -90,15 +94,12 @@ export default function PublicRegistrationView({
   );
   const [formFields, setFormFields] = useState<FormFieldDefinition[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [allowOtherDept, setAllowOtherDept] = useState(true);
 
   // Form input state
   const [fullName, setFullName] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+  const [customResponses, setCustomResponses] = useState<Record<string, unknown>>({});
   const [customDepartment, setCustomDepartment] = useState("");
-  const [customResponses, setCustomResponses] = useState<
-    Record<string, unknown>
-  >({});
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
@@ -150,7 +151,7 @@ export default function PublicRegistrationView({
           setFormFields(payload.form.fields);
         }
 
-        if (payload.departments) {
+        if (payload.departments && payload.departments.length > 0) {
           setDepartments(
             payload.departments.map((d) => ({
               id: d.id,
@@ -163,10 +164,20 @@ export default function PublicRegistrationView({
               createdAt: "",
             })),
           );
-        }
-
-        if (payload.session) {
-          setAllowOtherDept(Boolean(payload.session.allowOtherDepartment));
+        } else {
+          // Central church department fallback
+          setDepartments(
+            CENTRAL_CHURCH_DEPARTMENTS.map((d) => ({
+              id: d.code,
+              name: d.name,
+              code: d.code,
+              description: d.description,
+              leaderName: d.leadName || "",
+              isEnabled: true,
+              memberCount: 0,
+              createdAt: "",
+            })),
+          );
         }
 
         if (payload.outcome === "open") {
@@ -268,12 +279,12 @@ export default function PublicRegistrationView({
     }
 
     const hasDeptField = formFields.some((f) => f.type === "department");
-    if (hasDeptField) {
-      if (!departmentId) {
-        errors.departmentId = "Please select your department.";
-      } else if (departmentId === "other" && (!customDepartment.trim() || customDepartment.trim().length < 2)) {
-        errors.customDepartment = "Please specify your department or unit name.";
-      }
+    if (hasDeptField && !departmentId) {
+      errors.departmentId = "Please select your department from the dropdown.";
+    }
+    // If "Other" selected, require custom department
+    if (departmentId === "other" && (!customDepartment || !customDepartment.trim())) {
+      errors.customDepartment = "Please specify your department name.";
     }
 
     for (const f of formFields) {
@@ -332,8 +343,7 @@ export default function PublicRegistrationView({
           token,
           fullName: fullName.trim(),
           departmentId: departmentId || "congregation",
-          customDepartment:
-            departmentId === "other" ? customDepartment.trim() : undefined,
+          customDepartment: departmentId === "other" ? customDepartment : undefined,
           responses: customResponses,
         });
       } else {
@@ -353,9 +363,8 @@ export default function PublicRegistrationView({
           token,
           fullName: fullName.trim(),
           departmentId: departmentId || "congregation",
-          customDepartment:
-            departmentId === "other" ? customDepartment.trim() : undefined,
           responses: customResponses,
+          customDepartment: departmentId === "other" ? customDepartment : undefined,
           latitude: coords.latitude,
           longitude: coords.longitude,
           accuracy: coords.accuracy,
@@ -531,10 +540,22 @@ export default function PublicRegistrationView({
                         onValueChange={(val) => setDepartmentId(val ?? "")}
                       >
                         <SelectTrigger className="h-11 text-base sm:text-sm">
-                          <SelectValue placeholder="Select your department" />
+                          <SelectValue placeholder="Select your department">
+                            {(val) => {
+                              if (!val) return "Select your department";
+                              if (val === "congregation")
+                                return "General Congregation / Member";
+                              if (val === "other")
+                                return "Other (Specify Department)";
+                              const found = departments.find(
+                                (d) => d.id === val || d.code === val,
+                              );
+                              return found ? found.name : val;
+                            }}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {departments.map((dept) => (
+                                                    {departments.map((dept) => (
                             <SelectItem key={dept.id} value={dept.id}>
                               {dept.name}
                             </SelectItem>
@@ -542,44 +563,35 @@ export default function PublicRegistrationView({
                           <SelectItem value="congregation">
                             General Congregation / Member
                           </SelectItem>
-                          {allowOtherDept && (
-                            <SelectItem value="other">
-                              Other (Specify Department)
-                            </SelectItem>
-                          )}
+                          <SelectItem value="other">
+                            Other (Specify Department)
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       {validationErrors.departmentId && (
                         <FieldError>{validationErrors.departmentId}</FieldError>
                       )}
-                    </Field>
-                  )}
+                      {/* Show custom department input when "Other" selected */}
+                      {departmentId === "other" && (
+                        <Field invalid={Boolean(validationErrors.customDepartment)} className="mt-2">
+                          <FieldLabel>
+                            Specify Department <span className="text-brand-500">*</span>
+                          </FieldLabel>
+                          <Input
+                            type="text"
+                            placeholder="Enter your department"
+                            disabled={isSubmitting}
+                            value={customDepartment}
+                            onChange={(e) => setCustomDepartment(e.target.value)}
+                            className="h-11 text-base sm:text-sm"
+                          />
+                          {validationErrors.customDepartment && (
+                            <FieldError>{validationErrors.customDepartment}</FieldError>
+                          )}
+                        </Field>
+                      )}
 
-                  {/* Conditional "Other" Department */}
-                  {departmentId === "other" && (
-                    <ScaleIn>
-                      <Field
-                        invalid={Boolean(validationErrors.customDepartment)}
-                      >
-                        <FieldLabel>
-                          Other Department{" "}
-                          <span className="text-brand-500">*</span>
-                        </FieldLabel>
-                        <Input
-                          type="text"
-                          disabled={isSubmitting}
-                          value={customDepartment}
-                          onChange={(e) => setCustomDepartment(e.target.value)}
-                          placeholder="Enter your department or unit name"
-                          className="h-11 text-base sm:text-sm"
-                        />
-                        {validationErrors.customDepartment && (
-                          <FieldError>
-                            {validationErrors.customDepartment}
-                          </FieldError>
-                        )}
-                      </Field>
-                    </ScaleIn>
+                    </Field>
                   )}
 
                   {/* DYNAMIC QUESTIONS RENDERED BASED ON SESSION FORM SCHEMA */}

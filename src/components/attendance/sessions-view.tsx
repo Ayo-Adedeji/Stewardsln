@@ -11,6 +11,14 @@ import { SessionStatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -67,6 +75,9 @@ export default function AttendanceSessionsView() {
     null,
   );
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [sessionToDelete, setSessionToDelete] =
+    useState<AttendanceSession | null>(null);
+  const [isDeletingSession, setIsDeletingSession] = useState(false);
 
   const filteredSessions = useMemo(() => {
     return sessions.filter((session) => {
@@ -358,6 +369,20 @@ export default function AttendanceSessionsView() {
                               <Button
                                 variant="outline"
                                 size="xs"
+                                render={
+                                  <Link
+                                    href={`/records?session=${session.id}`}
+                                  />
+                                }
+                                title="View records from this session"
+                              >
+                                <UsersIcon className="size-3.5 text-brand-600 dark:text-brand-400" />
+                                View Records
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="xs"
                                 onClick={() => {
                                   setActivePassSessionId(session.id);
                                   setModalQrSessionId(session.id);
@@ -381,8 +406,23 @@ export default function AttendanceSessionsView() {
                                 />
                                 <DropdownMenuContent
                                   align="end"
-                                  className="w-52 p-1.5"
+                                  className="w-56 p-1.5"
                                 >
+                                  <DropdownMenuItem
+                                    render={
+                                      <Link
+                                        href={`/records?session=${session.id}`}
+                                      />
+                                    }
+                                  >
+                                    <UsersIcon className="size-4" />
+                                    <span>
+                                      View Records (
+                                      {session.registrationCount.toLocaleString()}
+                                      )
+                                    </span>
+                                  </DropdownMenuItem>
+
                                   <DropdownMenuItem
                                     onClick={() => {
                                       setActivePassSessionId(session.id);
@@ -475,7 +515,7 @@ export default function AttendanceSessionsView() {
 
                                   <DropdownMenuItem
                                     variant="destructive"
-                                    onClick={() => deleteSession(session.id)}
+                                    onClick={() => setSessionToDelete(session)}
                                   >
                                     <TrashBinIcon className="size-4" />
                                     <span>Delete Session</span>
@@ -629,6 +669,55 @@ export default function AttendanceSessionsView() {
           if (!open) setModalQrSessionId(null);
         }}
       />
+
+      {/* Delete Session Confirmation Dialog */}
+      <Dialog
+        open={Boolean(sessionToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setSessionToDelete(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Attendance Session</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete{" "}
+              <strong className="text-(--ln-fg-primary)">
+                {sessionToDelete?.eventName}
+              </strong>
+              {sessionToDelete?.eventDate
+                ? ` (${sessionToDelete.eventDate})`
+                : ""}?
+              {" "}This will permanently delete this session and all check-in records logged under it.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2">
+            <Button
+              variant="outline"
+              disabled={isDeletingSession}
+              onClick={() => setSessionToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              loading={isDeletingSession}
+              onClick={async () => {
+                if (!sessionToDelete) return;
+                try {
+                  setIsDeletingSession(true);
+                  await deleteSession(sessionToDelete.id);
+                  setSessionToDelete(null);
+                } finally {
+                  setIsDeletingSession(false);
+                }
+              }}
+            >
+              Delete Session
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

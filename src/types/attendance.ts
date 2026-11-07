@@ -130,6 +130,7 @@ export interface AttendanceRecord {
   departmentId: string;
   departmentName: string;
   isCustomDepartment?: boolean;
+  customDepartment?: string;
   verificationMethod: VerificationMethod;
   registeredByName?: string | null;
   responses?: Record<string, AttendanceRecordResponseItem>;

@@ -1260,11 +1260,11 @@ export default function SettingsView() {
                 <div className="flex items-center justify-between gap-4 rounded-xl border border-(--ln-border) bg-(--ln-surface-warm)/35 p-4">
                   <div>
                     <h3 className="text-sm font-semibold text-(--ln-fg-primary)">
-                      Allow &ldquo;Other&rdquo; Department Field
+                      Central Department List Enforcement
                     </h3>
                     <p className="mt-0.5 text-xs text-(--ln-fg-muted)">
-                      Show a conditional custom department input when an
-                      attendee selects Other.
+                      Attendees select strictly from the central church department
+                      list or General Congregation. Free-text entries are disabled.
                     </p>
                   </div>
                   <Switch
@@ -1370,7 +1370,15 @@ export default function SettingsView() {
                 onValueChange={(val) => setSelectedTargetAdminId(val ?? "")}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an active administrator" />
+                  <SelectValue placeholder="Select an active administrator">
+                    {(val) => {
+                      if (!val) return "Select an active administrator";
+                      const found = eligibleTransferTargets.find(
+                        (t) => t.id === val,
+                      );
+                      return found ? `${found.fullName} (${found.email})` : val;
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {eligibleTransferTargets.map((target) => (

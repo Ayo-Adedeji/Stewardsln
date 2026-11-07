@@ -16,6 +16,7 @@ import type {
   SessionStatus,
   SessionType,
 } from "@/types/attendance";
+import { CENTRAL_CHURCH_DEPARTMENTS } from "@/utils/departments";
 import { formatIsoToTime12h } from "@/utils/format";
 import { getFormTemplateForSessionType } from "@/utils/form-templates";
 import React, {
@@ -150,6 +151,7 @@ interface AttendanceContextValue {
   updateSession: (id: string, input: UpdateSessionInput) => Promise<AttendanceSession>;
   updateSessionStatus: (id: string, status: SessionStatus) => Promise<void>;
   deleteSession: (id: string) => Promise<void>;
+  deleteRecord: (id: string) => Promise<void>;
   rotateToken: (
     sessionId: string,
     accessType: "general" | "protocol",
@@ -195,7 +197,7 @@ const DEFAULT_EMPTY_SETTINGS: ChurchSettings = {
   geofenceRadiusM: 100, // 100m default radius
   gpsAccuracyThresholdM: 250, // 250m default threshold for indoor auditoriums
   preventDuplicateSubmissions: true,
-  allowOtherDepartment: true,
+  allowOtherDepartment: false,
   autoCloseAfterEndTime: true,
   adminName: "",
   adminEmail: "",
@@ -497,16 +499,28 @@ export function AttendanceProvider({
         adminPhone: currentProfile.phone,
       });
 
-      const mappedDepts: Department[] = (deptsResult.data || []).map((d) => ({
-        id: d.id,
-        name: d.name,
-        code: d.code,
-        description: d.description || "",
-        leaderName: d.lead_name || "",
-        isEnabled: Boolean(d.enabled),
-        memberCount: Number(d.member_count ?? 0),
-        createdAt: d.created_at ? String(d.created_at).slice(0, 10) : "",
-      }));
+      const mappedDepts: Department[] =
+        deptsResult.data && deptsResult.data.length > 0
+          ? deptsResult.data.map((d) => ({
+              id: d.id,
+              name: d.name,
+              code: d.code,
+              description: d.description || "",
+              leaderName: d.lead_name || "",
+              isEnabled: Boolean(d.enabled),
+              memberCount: Number(d.member_count ?? 0),
+              createdAt: d.created_at ? String(d.created_at).slice(0, 10) : "",
+            }))
+          : CENTRAL_CHURCH_DEPARTMENTS.map((d, idx) => ({
+              id: `dept-central-${idx + 1}`,
+              name: d.name,
+              code: d.code,
+              description: d.description,
+              leaderName: d.leadName || "",
+              isEnabled: true,
+              memberCount: 10,
+              createdAt: new Date().toISOString().slice(0, 10),
+            }));
       setDepartments(mappedDepts);
 
       // Map tokens by sessionId + type
@@ -589,6 +603,7 @@ export function AttendanceProvider({
           departmentId: r.department_id || "other",
           departmentName: r.department_name_snapshot,
           isCustomDepartment: Boolean(r.custom_department || !r.department_id),
+          customDepartment: r.custom_department || undefined,
           verificationMethod: r.verification_method || "legacy_unverified",
           registeredByName: r.registered_by_name,
           responses: r.responses || {},
@@ -945,6 +960,37 @@ export function AttendanceProvider({
     setRecords((prev) => prev.filter((r) => r.sessionId !== id));
   };
 
+  const deleteRecord = async (id: string): Promise<void> => {
+    setError(null);
+    const { error: deleteError } = await supabase
+      .from("attendance_records")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      const msg = `Failed to delete attendance record: ${deleteError.message}`;
+      setError(msg);
+      throw new Error(msg);
+    }
+
+    setRecords((prev) => {
+      const matchingRec = prev.find((r) => r.id === id);
+      if (matchingRec) {
+        setSessions((sPrev) =>
+          sPrev.map((s) =>
+            s.id === matchingRec.sessionId
+              ? {
+                  ...s,
+                  registrationCount: Math.max(0, s.registrationCount - 1),
+                }
+              : s,
+          ),
+        );
+      }
+      return prev.filter((r) => r.id !== id);
+    });
+  };
+
   const rotateToken = async (
     sessionId: string,
     accessType: "general" | "protocol",
@@ -1058,12 +1104,34 @@ export function AttendanceProvider({
       throw new Error(msg);
     }
 
+    const normName = input.name.trim().replace(/\s+/g, " ").toLowerCase();
+    const normCode = input.code.trim().toUpperCase();
+
+    // Client-side duplicate check (case-insensitive & trimmed)
+    const existingName = departments.find(
+      (d) => d.name.trim().replace(/\s+/g, " ").toLowerCase() === normName,
+    );
+    if (existingName) {
+      const msg = `A department named "${existingName.name}" already exists. Department names must be unique.`;
+      setError(msg);
+      throw new Error(msg);
+    }
+
+    const existingCode = departments.find(
+      (d) => d.code.trim().toUpperCase() === normCode,
+    );
+    if (existingCode) {
+      const msg = `A department with code "${existingCode.code}" already exists.`;
+      setError(msg);
+      throw new Error(msg);
+    }
+
     const { data, error: insertError } = await supabase
       .from("departments")
       .insert({
         organization_id: adminProfile.organizationId,
-        name: input.name.trim(),
-        code: input.code.trim().toUpperCase(),
+        name: input.name.trim().replace(/\s+/g, " "),
+        code: normCode,
         description: input.description.trim(),
         lead_name: input.leaderName.trim(),
         enabled: input.isEnabled ?? true,
@@ -1073,10 +1141,22 @@ export function AttendanceProvider({
       .single();
 
     if (insertError || !data) {
-      const msg =
-        insertError?.code === "23505"
-          ? `A department with code "${input.code.trim().toUpperCase()}" already exists.`
-          : insertError?.message || "Failed to create department.";
+      let msg = insertError?.message || "Failed to create department.";
+      if (insertError?.code === "23505") {
+        if (
+          insertError.message.includes("norm_name") ||
+          insertError.details?.includes("norm_name")
+        ) {
+          msg = `A department with this name already exists (names must be unique regardless of capitalisation or spaces).`;
+        } else if (
+          insertError.message.includes("norm_code") ||
+          insertError.details?.includes("norm_code")
+        ) {
+          msg = `A department with code "${normCode}" already exists.`;
+        } else {
+          msg = `A department with this name or code already exists.`;
+        }
+      }
       setError(msg);
       throw new Error(msg);
     }
@@ -1103,8 +1183,36 @@ export function AttendanceProvider({
     input: Partial<DepartmentInput>,
   ): Promise<void> => {
     setError(null);
+
+    if (input.name !== undefined) {
+      const normName = input.name.trim().replace(/\s+/g, " ").toLowerCase();
+      const existingName = departments.find(
+        (d) =>
+          d.id !== id &&
+          d.name.trim().replace(/\s+/g, " ").toLowerCase() === normName,
+      );
+      if (existingName) {
+        const msg = `A department named "${existingName.name}" already exists. Department names must be unique.`;
+        setError(msg);
+        throw new Error(msg);
+      }
+    }
+
+    if (input.code !== undefined) {
+      const normCode = input.code.trim().toUpperCase();
+      const existingCode = departments.find(
+        (d) => d.id !== id && d.code.trim().toUpperCase() === normCode,
+      );
+      if (existingCode) {
+        const msg = `A department with code "${existingCode.code}" already exists.`;
+        setError(msg);
+        throw new Error(msg);
+      }
+    }
+
     const patch: Record<string, unknown> = {};
-    if (input.name !== undefined) patch.name = input.name.trim();
+    if (input.name !== undefined)
+      patch.name = input.name.trim().replace(/\s+/g, " ");
     if (input.code !== undefined) patch.code = input.code.trim().toUpperCase();
     if (input.description !== undefined)
       patch.description = input.description.trim();
@@ -1119,7 +1227,11 @@ export function AttendanceProvider({
       .eq("id", id);
 
     if (updateError) {
-      const msg = `Failed to update department: ${updateError.message}`;
+      let msg = `Failed to update department: ${updateError.message}`;
+      if (updateError.code === "23505") {
+        msg =
+          "A department with this name or code already exists (names must be unique regardless of capitalisation or spaces).";
+      }
       setError(msg);
       throw new Error(msg);
     }
@@ -1129,7 +1241,9 @@ export function AttendanceProvider({
         d.id === id
           ? {
               ...d,
-              ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+              ...(input.name !== undefined
+                ? { name: input.name.trim().replace(/\s+/g, " ") }
+                : {}),
               ...(input.code !== undefined
                 ? { code: input.code.trim().toUpperCase() }
                 : {}),
@@ -1394,6 +1508,7 @@ export function AttendanceProvider({
         updateSession,
         updateSessionStatus,
         deleteSession,
+        deleteRecord,
         rotateToken,
         getSessionByToken,
         submitGpsAttendance,

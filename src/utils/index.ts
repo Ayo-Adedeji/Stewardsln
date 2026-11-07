@@ -31,3 +31,8 @@ export {
   parseCoordinateSingle,
   type ParsedCoordinates,
 } from "./coordinates";
+export {
+  CENTRAL_CHURCH_DEPARTMENTS,
+  DEFAULT_CHURCH_DEPARTMENTS,
+  type DefaultChurchDepartment,
+} from "./departments";

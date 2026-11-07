@@ -6,6 +6,14 @@ import PageHeader from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -29,23 +37,45 @@ import {
   FilterIcon,
   PrinterIcon,
   SearchIcon,
+  TrashBinIcon,
   UsersIcon,
   XIcon,
 } from "@/icons";
+import type { AttendanceRecord } from "@/types/attendance";
 import {
   exportToCsv,
   formatDisplayDate,
   getInitials,
 } from "@/utils";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 export default function AttendanceRecordsView() {
-  const { records, sessions, departments } = useAttendance();
+  const { records, sessions, departments, deleteRecord } = useAttendance();
+  const searchParams = useSearchParams();
+  const sessionQueryParam = searchParams.get("session");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState<string>("all");
-  const [selectedSession, setSelectedSession] = useState<string>("all");
+  const [selectedSession, setSelectedSession] = useState<string>(
+    sessionQueryParam || "all",
+  );
   const [selectedDate, setSelectedDate] = useState<string>("");
+  const [recordToDelete, setRecordToDelete] = useState<AttendanceRecord | null>(
+    null,
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (sessionQueryParam) {
+      setSelectedSession(sessionQueryParam);
+    }
+  }, [sessionQueryParam]);
+
+  const activeSessionObj = useMemo(() => {
+    if (!selectedSession || selectedSession === "all") return null;
+    return sessions.find((s) => s.id === selectedSession) || null;
+  }, [sessions, selectedSession]);
 
   const filteredRecords = useMemo(() => {
     return records.filter((rec) => {
@@ -54,13 +84,23 @@ export default function AttendanceRecordsView() {
         !q ||
         rec.fullName.toLowerCase().includes(q) ||
         rec.departmentName.toLowerCase().includes(q) ||
+        (rec.customDepartment && rec.customDepartment.toLowerCase().includes(q)) ||
         rec.sessionName.toLowerCase().includes(q);
+
+      const selectedDeptObj = departments.find(
+        (d) => d.id === selectedDepartment,
+      );
 
       const matchesDepartment =
         selectedDepartment === "all" ||
-        (selectedDepartment === "other"
-          ? Boolean(rec.isCustomDepartment || rec.departmentId === "other")
-          : rec.departmentId === selectedDepartment);
+        (selectedDepartment === "congregation"
+          ? rec.departmentName.toLowerCase().includes("congregation")
+          : selectedDepartment === "other"
+            ? Boolean(rec.isCustomDepartment || rec.departmentId === "other")
+            : rec.departmentId === selectedDepartment ||
+              (selectedDeptObj &&
+                rec.departmentName.trim().toLowerCase() ===
+                  selectedDeptObj.name.trim().toLowerCase()));
 
       const matchesSession =
         selectedSession === "all" || rec.sessionId === selectedSession;
@@ -73,6 +113,7 @@ export default function AttendanceRecordsView() {
     });
   }, [
     records,
+    departments,
     searchQuery,
     selectedDepartment,
     selectedSession,
@@ -211,6 +252,32 @@ export default function AttendanceRecordsView() {
       {/* Filters & Records Table Card */}
       <FadeIn delayMs={80}>
         <Card className="p-6">
+          {/* Active Session Filter Banner */}
+          {activeSessionObj && (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-500/30 bg-brand-500/10 p-3.5 sm:px-5">
+              <div className="flex items-center gap-2.5">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-500/20 text-brand-600 dark:text-brand-400">
+                  <UsersIcon className="size-4" />
+                </span>
+                <div>
+                  <p className="text-xs font-semibold text-brand-900 dark:text-brand-200">
+                    Filtered by Service Session: {activeSessionObj.eventName}
+                  </p>
+                  <p className="text-[11px] text-brand-700/80 dark:text-brand-300/80">
+                    {formatDisplayDate(activeSessionObj.eventDate)} • {filteredRecords.length} attendee{filteredRecords.length === 1 ? "" : "s"} logged
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => setSelectedSession("all")}
+              >
+                View All Sessions
+              </Button>
+            </div>
+          )}
+
           {/* 4-Control Filter Bar: Search, Department Filter, Session Filter, Date Filter */}
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
             {/* Search */}
@@ -232,7 +299,18 @@ export default function AttendanceRecordsView() {
                 onValueChange={(val) => setSelectedDepartment(val ?? "all")}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All Departments" />
+                  <SelectValue placeholder="All Departments">
+                    {(val) => {
+                      if (!val || val === "all") return "All Departments";
+                      if (val === "congregation")
+                        return "General Congregation / Member";
+                      if (val === "other") return "Other / Historical Custom";
+                      const found = departments.find(
+                        (d) => d.id === val || d.code === val,
+                      );
+                      return found ? found.name : val;
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
@@ -241,8 +319,11 @@ export default function AttendanceRecordsView() {
                       {dept.name}
                     </SelectItem>
                   ))}
+                  <SelectItem value="congregation">
+                    General Congregation / Member
+                  </SelectItem>
                   <SelectItem value="other">
-                    Other / Custom Department
+                    Other / Historical Custom
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -255,7 +336,13 @@ export default function AttendanceRecordsView() {
                 onValueChange={(val) => setSelectedSession(val ?? "all")}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All Sessions" />
+                  <SelectValue placeholder="All Sessions">
+                    {(val) => {
+                      if (!val || val === "all") return "All Attendance Sessions";
+                      const found = sessions.find((s) => s.id === val);
+                      return found ? `${found.eventName} (${found.eventDate})` : val;
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Attendance Sessions</SelectItem>
@@ -345,11 +432,14 @@ export default function AttendanceRecordsView() {
                     <TableCell isHeader className="table-header-cell">
                       Service Session
                     </TableCell>
+                    <TableCell isHeader className="table-header-cell">
+                      Date
+                    </TableCell>
                     <TableCell
                       isHeader
                       className="table-header-cell pe-0 text-end"
                     >
-                      Date
+                      Action
                     </TableCell>
                   </TableRow>
                 </TableHeader>
@@ -429,8 +519,20 @@ export default function AttendanceRecordsView() {
                         </span>
                       </TableCell>
 
-                      <TableCell className="table-body-cell pe-0 text-end whitespace-nowrap text-(--ln-fg-muted)">
+                      <TableCell className="table-body-cell whitespace-nowrap text-(--ln-fg-muted)">
                         {formatDisplayDate(record.sessionDate)}
+                      </TableCell>
+
+                      <TableCell className="table-body-cell pe-0 text-end whitespace-nowrap">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-red-500 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-500/20"
+                          onClick={() => setRecordToDelete(record)}
+                          title={`Delete check-in for ${record.fullName}`}
+                        >
+                          <TrashBinIcon className="size-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -440,6 +542,54 @@ export default function AttendanceRecordsView() {
           )}
         </Card>
       </FadeIn>
+
+      {/* Delete Record Confirmation Dialog */}
+      <Dialog
+        open={Boolean(recordToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setRecordToDelete(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Attendance Record</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete the check-in record for{" "}
+              <strong className="text-(--ln-fg-primary)">
+                {recordToDelete?.fullName}
+              </strong>
+              {recordToDelete?.departmentName
+                ? ` (${recordToDelete.departmentName})`
+                : ""}? This will remove the attendee check-in and update attendance totals.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2">
+            <Button
+              variant="outline"
+              disabled={isDeleting}
+              onClick={() => setRecordToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              loading={isDeleting}
+              onClick={async () => {
+                if (!recordToDelete) return;
+                try {
+                  setIsDeleting(true);
+                  await deleteRecord(recordToDelete.id);
+                  setRecordToDelete(null);
+                } finally {
+                  setIsDeleting(false);
+                }
+              }}
+            >
+              Delete Record
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
