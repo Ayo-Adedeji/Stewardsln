@@ -50,7 +50,17 @@ const createSessionSchema = z
   .refine((data) => data.closingTime > data.openingTime, {
     message: "Closing time must be after opening time.",
     path: ["closingTime"],
-  });
+  })
+  .refine(
+    (data) =>
+      !data.protocolClosingTime ||
+      data.protocolClosingTime >= data.closingTime,
+    {
+      message:
+        "Protocol closing time must be equal to or later than GPS closing time.",
+      path: ["protocolClosingTime"],
+    },
+  );
 
 type CreateSessionFormValues = z.infer<typeof createSessionSchema>;
 
@@ -63,38 +73,43 @@ interface CreateSessionFormProps {
 const TEMPLATE_PRESETS = [
   {
     type: "sunday_service" as SessionType,
-    label: "Sunday Service (06:00 AM – 07:10 AM)",
+    label: "Sunday Service (06:30 AM – 07:10 AM · Protocol 07:30 AM)",
     defaultName: "Sunday Celebration Service",
-    openingTime: "06:00",
+    openingTime: "06:30",
     closingTime: "07:10",
+    protocolClosingTime: "07:30",
   },
   {
     type: "workers_meeting" as SessionType,
-    label: "Workers' Meeting (08:00 AM – 10:30 AM)",
+    label: "Workers' Meeting (08:00 AM – 10:30 AM · Protocol 11:00 AM)",
     defaultName: "Workers & Ministers Alignment Charge",
     openingTime: "08:00",
     closingTime: "10:30",
+    protocolClosingTime: "11:00",
   },
   {
     type: "conference" as SessionType,
-    label: "Conference (09:00 AM – 02:00 PM)",
+    label: "Conference (09:00 AM – 02:00 PM · Protocol 02:30 PM)",
     defaultName: "Light Nation Annual Believers Conference",
     openingTime: "09:00",
     closingTime: "14:00",
+    protocolClosingTime: "14:30",
   },
   {
     type: "general_event" as SessionType,
-    label: "General Event (05:00 PM – 08:00 PM)",
+    label: "General Event (05:00 PM – 08:00 PM · Protocol 08:30 PM)",
     defaultName: "Church Special Seminar & Impartation",
     openingTime: "17:00",
     closingTime: "20:00",
+    protocolClosingTime: "20:30",
   },
   {
     type: "custom" as SessionType,
-    label: "Custom Form (10:00 AM – 12:30 PM)",
+    label: "Custom Form (10:00 AM – 12:30 PM · Protocol 01:00 PM)",
     defaultName: "Special Fellowship Session",
     openingTime: "10:00",
     closingTime: "12:30",
+    protocolClosingTime: "13:00",
   },
 ];
 
@@ -134,8 +149,9 @@ export default function CreateSessionForm({
       eventName: "Sunday Celebration Service",
       sessionType: "sunday_service",
       eventDate: getTodayDateString(),
-      openingTime: "06:00",
+      openingTime: "06:30",
       closingTime: "07:10",
+      protocolClosingTime: "07:30",
       status: "open",
       description: "",
       expectedCapacity: 250,
@@ -151,6 +167,9 @@ export default function CreateSessionForm({
     setValue("eventName", preset.defaultName, { shouldValidate: true });
     setValue("openingTime", preset.openingTime, { shouldValidate: true });
     setValue("closingTime", preset.closingTime, { shouldValidate: true });
+    setValue("protocolClosingTime", preset.protocolClosingTime, {
+      shouldValidate: true,
+    });
     setFormSchema(getFormTemplateForSessionType(preset.type));
   };
 
@@ -176,8 +195,9 @@ export default function CreateSessionForm({
         eventName: "Sunday Celebration Service",
         sessionType: "sunday_service",
         eventDate: getTodayDateString(),
-        openingTime: "06:00",
+        openingTime: "06:30",
         closingTime: "07:10",
+        protocolClosingTime: "07:30",
         status: "open",
         description: "",
         expectedCapacity: 250,
@@ -377,12 +397,12 @@ export default function CreateSessionForm({
               </Field>
             </div>
             <p className="text-[11px] text-(--ln-fg-muted)">
-              Both General QR (GPS) and Protocol QR strictly open and close at these exact times.
+              General QR (GPS) strictly closes at Closing Time. Protocol QR stays open until the Protocol Extended Close Time below.
             </p>
           </div>
 
           {/* Protocol Extended Close Time */}
-          <Field>
+          <Field invalid={Boolean(errors.protocolClosingTime)}>
             <FieldLabel>
               Protocol QR — Extended Close Time{" "}
               <span className="font-normal text-(--ln-fg-muted)">(Optional)</span>
@@ -398,9 +418,12 @@ export default function CreateSessionForm({
                 />
               )}
             />
+            {errors.protocolClosingTime && (
+              <FieldError>{errors.protocolClosingTime.message}</FieldError>
+            )}
             <p className="text-[11px] text-(--ln-fg-muted)">
-              If set, the Protocol QR stays open until this later time. Leave
-              blank to use the same closing time as the GPS QR.
+              Protocol QR stays open until this later time (default 07:30 AM). Leave
+              blank to close at the same time as the GPS QR.
             </p>
           </Field>
 

@@ -213,6 +213,7 @@ export function computeSessionLiveStatus(
   startTime: string,
   endTime: string,
   timezone = "Africa/Lagos",
+  protocolEndTime?: string,
 ): SessionStatus {
   if (dbStatus === "closed" || dbStatus === "expired") {
     return "closed";
@@ -236,9 +237,11 @@ export function computeSessionLiveStatus(
     const currentDate = `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
     const currentTime = `${getPart("hour")}:${getPart("minute")}:${getPart("second")}`;
 
+    const effectiveEnd = protocolEndTime || endTime;
     const cleanStart =
       startTime.length === 5 ? `${startTime}:00` : startTime;
-    const cleanEnd = endTime.length === 5 ? `${endTime}:00` : endTime;
+    const cleanEnd =
+      effectiveEnd.length === 5 ? `${effectiveEnd}:00` : effectiveEnd;
 
     if (
       currentDate > sessionDate ||
@@ -577,6 +580,9 @@ export function AttendanceProvider({
             String(s.start_time),
             String(s.end_time),
             s.timezone || tz,
+            s.protocol_end_time
+              ? String(s.protocol_end_time).slice(0, 5)
+              : undefined,
           ),
           registrationCount: Number(s.registration_count ?? 0),
           expectedCapacity: Number(s.expected_capacity ?? 100),
@@ -737,6 +743,7 @@ export function AttendanceProvider({
             s.openingTime,
             s.closingTime,
             s.timezone || settings.timezone,
+            s.protocolClosingTime,
           );
           if (liveStatus !== s.status) {
             changed = true;
@@ -834,6 +841,9 @@ export function AttendanceProvider({
         String(data.start_time),
         String(data.end_time),
         data.timezone || settings.timezone,
+        data.protocol_end_time
+          ? String(data.protocol_end_time).slice(0, 5)
+          : undefined,
       ),
       registrationCount: Number(data.registration_count ?? 0),
       expectedCapacity: Number(data.expected_capacity ?? 250),
@@ -917,6 +927,9 @@ export function AttendanceProvider({
         String(data.start_time),
         String(data.end_time),
         data.timezone || settings.timezone,
+        data.protocol_end_time
+          ? String(data.protocol_end_time).slice(0, 5)
+          : undefined,
       ),
       registrationCount: Number(data.registration_count ?? 0),
       expectedCapacity: Number(data.expected_capacity ?? 250),
