@@ -5,6 +5,14 @@ import QrCodeModal from "@/components/attendance/qr-code-modal";
 import BrandLogo from "@/components/shared/brand-logo";
 import ThemeSelector from "@/components/shared/theme-selector";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAttendance } from "@/context/attendance-context";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import {
@@ -51,6 +59,8 @@ export default function AdminShell({
   } = useAttendance();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [qrSessionId, setQrSessionId] = useState<string | null>(null);
+  const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const openSession = sessions.find((s) => s.status === "open");
   const activeQrSession =
@@ -117,9 +127,15 @@ export default function AdminShell({
     setQrSessionId(created.id);
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    window.location.href = "/login";
+  const handleSignOutConfirm = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut();
+      window.location.href = "/login";
+    } catch {
+      setIsSigningOut(false);
+      setIsSignOutModalOpen(false);
+    }
   };
 
   return (
@@ -252,7 +268,7 @@ export default function AdminShell({
 
             <button
               type="button"
-              onClick={handleSignOut}
+              onClick={() => setIsSignOutModalOpen(true)}
               title="Sign out"
               aria-label="Sign out"
               className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-(--ln-border) text-(--ln-fg-muted) transition-colors hover:bg-(--ln-surface-warm) hover:text-(--ln-fg-primary)"
@@ -285,7 +301,7 @@ export default function AdminShell({
               </Button>
               <button
                 type="button"
-                onClick={handleSignOut}
+                onClick={() => setIsSignOutModalOpen(true)}
                 title="Sign out"
                 aria-label="Sign out"
                 className="inline-flex size-8 items-center justify-center rounded-lg border border-(--ln-border) text-(--ln-fg-muted) hover:text-(--ln-fg-primary)"
@@ -362,6 +378,40 @@ export default function AdminShell({
           if (!open) setQrSessionId(null);
         }}
       />
+
+      {/* Sign Out Confirmation Dialog */}
+      <Dialog
+        open={isSignOutModalOpen}
+        onOpenChange={(open) => {
+          if (!open && !isSigningOut) setIsSignOutModalOpen(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sign Out</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to sign out?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2">
+            <Button
+              variant="outline"
+              disabled={isSigningOut}
+              onClick={() => setIsSignOutModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              loading={isSigningOut}
+              loadingText="Signing out..."
+              onClick={handleSignOutConfirm}
+            >
+              Sign Out
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
