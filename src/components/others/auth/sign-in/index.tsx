@@ -39,6 +39,7 @@ export default function SignIn() {
   const [setupRequired, setSetupRequired] = useState<boolean>(false);
   const [migrationPending, setMigrationPending] = useState<boolean>(false);
   const [checkingSetup, setCheckingSetup] = useState<boolean>(true);
+  const [isRedirecting, setIsRedirecting] = useState<boolean>(false);
 
   const {
     register,
@@ -58,6 +59,16 @@ export default function SignIn() {
     let active = true;
     async function checkInitialSetup() {
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!active) return;
+        if (session?.user) {
+          setIsRedirecting(true);
+          window.location.href = "/";
+          return;
+        }
+
         const { data, error } = await supabase.rpc("is_initial_setup_required");
         if (!active) return;
         if (!error && data === true) {
@@ -77,7 +88,10 @@ export default function SignIn() {
     };
   }, [supabase]);
 
+  const isBusy = isSubmitting || isRedirecting;
+
   const onSubmit = async (values: LoginFormValues) => {
+    if (isBusy) return;
     setAuthError(null);
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -122,8 +136,10 @@ export default function SignIn() {
       return;
     }
 
-    await refreshData();
-    router.push("/");
+    // Set redirecting state immediately so user sees immediate feedback
+    // and button stays locked while browser loads dashboard
+    setIsRedirecting(true);
+    window.location.href = "/";
   };
 
   return (
@@ -186,6 +202,18 @@ export default function SignIn() {
           </div>
         )}
 
+        {isRedirecting && (
+          <div
+            role="status"
+            className="mb-5 flex items-center gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-700 dark:text-emerald-300 animate-pulse"
+          >
+            <CheckCircleIcon className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span className="leading-relaxed font-medium">
+              Signed in successfully! Entering your dashboard...
+            </span>
+          </div>
+        )}
+
         {authError && (
           <div
             role="alert"
@@ -208,6 +236,7 @@ export default function SignIn() {
             <Input
               type="email"
               autoComplete="email"
+              disabled={isBusy}
               placeholder="you@lightnation.org"
               {...register("email")}
             />
@@ -222,16 +251,18 @@ export default function SignIn() {
               <Input
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
+                disabled={isBusy}
                 placeholder="Enter your password"
                 className="pe-10"
                 {...register("password")}
               />
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 title={showPassword ? "Hide password" : "Show password"}
-                className="absolute inset-e-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-(--ln-fg-muted) transition-colors hover:bg-(--ln-surface-warm) hover:text-(--ln-fg-primary) active:scale-95"
+                className="absolute inset-e-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-(--ln-fg-muted) transition-colors hover:bg-(--ln-surface-warm) hover:text-(--ln-fg-primary) active:scale-95 disabled:pointer-events-none disabled:opacity-50"
               >
                 {showPassword ? (
                   <EyeIcon className="size-4.5" />
@@ -253,6 +284,7 @@ export default function SignIn() {
                 render={({ field }) => (
                   <Checkbox
                     id="keepLoggedIn"
+                    disabled={isBusy}
                     checked={Boolean(field.value)}
                     onCheckedChange={(checked) =>
                       field.onChange(Boolean(checked))
@@ -282,8 +314,9 @@ export default function SignIn() {
             type="submit"
             size="lg"
             leadingArrow
-            loading={isSubmitting}
-            loadingText="Signing in..."
+            disabled={isBusy}
+            loading={isBusy}
+            loadingText={isRedirecting ? "Entering dashboard..." : "Signing in..."}
             className="mt-2 w-full"
           >
             Sign In to Dashboard

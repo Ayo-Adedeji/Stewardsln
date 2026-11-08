@@ -119,8 +119,7 @@ export default function AcceptInvitationView({ token }: { token: string }) {
     }
 
     if (data.session) {
-      await refreshData();
-      router.push("/");
+      window.location.href = "/";
       return;
     }
 

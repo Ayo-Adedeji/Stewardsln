@@ -89,6 +89,7 @@ export interface AttendanceSession {
   eventDate: string; // YYYY-MM-DD
   openingTime: string; // HH:mm (24h)
   closingTime: string; // HH:mm (24h)
+  protocolClosingTime?: string; // HH:mm (24h) — if set, Protocol QR stays open until this time
   opensAt: string; // ISO timestamptz
   closesAt: string; // ISO timestamptz
   timezone: string;

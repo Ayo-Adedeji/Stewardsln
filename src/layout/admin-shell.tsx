@@ -119,7 +119,7 @@ export default function AdminShell({
 
   const handleSignOut = async () => {
     await signOut();
-    router.push("/login");
+    window.location.href = "/login";
   };
 
   return (

@@ -34,6 +34,7 @@ export interface CreateSessionInput {
   eventDate: string;
   openingTime: string;
   closingTime: string;
+  protocolClosingTime?: string; // optional later close time for Protocol QR
   description?: string;
   status?: SessionStatus;
   expectedCapacity?: number;
@@ -50,6 +51,7 @@ export interface UpdateSessionInput {
   eventDate?: string;
   openingTime?: string;
   closingTime?: string;
+  protocolClosingTime?: string | null; // null clears it
   description?: string;
   status?: SessionStatus;
   expectedCapacity?: number;
@@ -560,6 +562,9 @@ export function AttendanceProvider({
           eventDate: String(s.session_date),
           openingTime: String(s.start_time).slice(0, 5),
           closingTime: String(s.end_time).slice(0, 5),
+          protocolClosingTime: s.protocol_end_time
+            ? String(s.protocol_end_time).slice(0, 5)
+            : undefined,
           opensAt: s.opens_at,
           closesAt: s.closes_at,
           timezone: s.timezone || tz,
@@ -771,6 +776,7 @@ export function AttendanceProvider({
         session_date: input.eventDate,
         start_time: input.openingTime,
         end_time: input.closingTime,
+        protocol_end_time: input.protocolClosingTime || null,
         status: dbStatus,
         location: settings.address || "Main Auditorium",
         notes: input.description?.trim() || "",
@@ -813,6 +819,9 @@ export function AttendanceProvider({
       eventDate: String(data.session_date),
       openingTime: String(data.start_time).slice(0, 5),
       closingTime: String(data.end_time).slice(0, 5),
+      protocolClosingTime: data.protocol_end_time
+        ? String(data.protocol_end_time).slice(0, 5)
+        : undefined,
       opensAt: data.opens_at,
       closesAt: data.closes_at,
       timezone: data.timezone,
@@ -854,6 +863,8 @@ export function AttendanceProvider({
     if (input.eventDate !== undefined) patch.session_date = input.eventDate;
     if (input.openingTime !== undefined) patch.start_time = input.openingTime;
     if (input.closingTime !== undefined) patch.end_time = input.closingTime;
+    if (input.protocolClosingTime !== undefined)
+      patch.protocol_end_time = input.protocolClosingTime ?? null;
     if (input.description !== undefined) patch.notes = input.description.trim();
     if (input.status !== undefined)
       patch.status = mapUiStatusToDb(input.status);
@@ -891,6 +902,9 @@ export function AttendanceProvider({
       eventDate: String(data.session_date),
       openingTime: String(data.start_time).slice(0, 5),
       closingTime: String(data.end_time).slice(0, 5),
+      protocolClosingTime: data.protocol_end_time
+        ? String(data.protocol_end_time).slice(0, 5)
+        : undefined,
       opensAt: data.opens_at,
       closesAt: data.closes_at,
       timezone: data.timezone,

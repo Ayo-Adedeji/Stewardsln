@@ -183,8 +183,7 @@ export default function FirstAdminSetup() {
         return;
       }
 
-      await refreshData();
-      router.push("/");
+      window.location.href = "/";
       return;
     }
 

@@ -40,6 +40,7 @@ const createSessionSchema = z
     eventDate: z.string().min(1, "Please select an event date."),
     openingTime: z.string().min(1, "Opening time is required."),
     closingTime: z.string().min(1, "Closing time is required."),
+    protocolClosingTime: z.string().optional(), // optional later close for Protocol QR
     status: z.enum(["open", "scheduled", "closed"]),
     description: z.string().max(300, "Description is too long.").optional(),
     expectedCapacity: z.number().min(1),
@@ -162,6 +163,7 @@ export default function CreateSessionForm({
         eventDate: values.eventDate,
         openingTime: values.openingTime,
         closingTime: values.closingTime,
+        protocolClosingTime: values.protocolClosingTime || undefined,
         description: values.description,
         status: values.status as SessionStatus,
         expectedCapacity: values.expectedCapacity,
@@ -378,6 +380,29 @@ export default function CreateSessionForm({
               Both General QR (GPS) and Protocol QR strictly open and close at these exact times.
             </p>
           </div>
+
+          {/* Protocol Extended Close Time */}
+          <Field>
+            <FieldLabel>
+              Protocol QR — Extended Close Time{" "}
+              <span className="font-normal text-(--ln-fg-muted)">(Optional)</span>
+            </FieldLabel>
+            <Controller
+              control={control}
+              name="protocolClosingTime"
+              render={({ field }) => (
+                <TimePicker12h
+                  id="protocolClosingTime"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+            <p className="text-[11px] text-(--ln-fg-muted)">
+              If set, the Protocol QR stays open until this later time. Leave
+              blank to use the same closing time as the GPS QR.
+            </p>
+          </Field>
 
           {/* Description */}
           <Field invalid={Boolean(errors.description)}>
