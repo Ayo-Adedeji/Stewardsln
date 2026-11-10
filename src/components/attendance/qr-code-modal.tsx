@@ -56,9 +56,11 @@ export default function QrCodeModal({
 
     if (!session) return null;
 
-  const closeTime = activeTab === "protocol" && session.protocolClosingTime ? session.protocolClosingTime : session.closingTime;
-
   const closeTime = activeTab === "protocol" ? (session.protocolClosingTime ?? session.closingTime) : session.closingTime;
+
+
+
+
 
   const generalUrl = getPublicRegistrationUrl(
     session.token,
@@ -259,7 +261,7 @@ export default function QrCodeModal({
             <span className="tabular inline-flex items-center gap-1.5">
               <ClockIcon className="size-3.5 text-brand-600 dark:text-brand-400" />
               {formatTime12h(session.openingTime)} –{" "}
-              {activeTab === "protocol" ? formatTime12h(session.protocolClosingTime) : formatTime12h(session.closingTime)}
+              {formatTime12h(closeTime)}
             </span>
             <span className="tabular inline-flex items-center gap-1.5 font-medium text-(--ln-fg-primary)">
               <UsersIcon className="size-3.5 text-brand-600 dark:text-brand-400" />
