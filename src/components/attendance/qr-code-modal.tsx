@@ -54,7 +54,11 @@ export default function QrCodeModal({
   const [isRotating, setIsRotating] = useState(false);
   const [rotationNotice, setRotationNotice] = useState<string | null>(null);
 
-  if (!session) return null;
+    if (!session) return null;
+
+  const closeTime = activeTab === "protocol" && session.protocolClosingTime ? session.protocolClosingTime : session.closingTime;
+
+  const closeTime = activeTab === "protocol" ? (session.protocolClosingTime ?? session.closingTime) : session.closingTime;
 
   const generalUrl = getPublicRegistrationUrl(
     session.token,
@@ -79,7 +83,7 @@ export default function QrCodeModal({
       await downloadQrCodePng(
         generalUrl,
         session.eventName,
-        `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(session.closingTime)})`,
+        `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(closeTime)})`,
         `light-nation-${session.eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-general-gps`,
         "GENERAL ATTENDANCE · GPS REQUIRED",
       );
@@ -87,7 +91,7 @@ export default function QrCodeModal({
       await downloadQrCodePng(
         protocolUrl,
         session.eventName,
-        `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(session.closingTime)})`,
+        `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(closeTime)})`,
         `light-nation-${session.eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-protocol-entrance`,
         "PROTOCOL DESK · GPS NOT REQUIRED",
       );
@@ -99,7 +103,7 @@ export default function QrCodeModal({
       downloadQrCodeSvg(
         generalUrl,
         session.eventName,
-        `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(session.closingTime)})`,
+        `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(closeTime)})`,
         `light-nation-${session.eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-general-gps`,
         "GENERAL ATTENDANCE · GPS REQUIRED",
       );
@@ -107,7 +111,7 @@ export default function QrCodeModal({
       downloadQrCodeSvg(
         protocolUrl,
         session.eventName,
-        `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(session.closingTime)})`,
+        `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(closeTime)})`,
         `light-nation-${session.eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-protocol-entrance`,
         "PROTOCOL DESK · GPS NOT REQUIRED",
       );
@@ -119,7 +123,7 @@ export default function QrCodeModal({
       generalUrl,
       protocolUrl,
       session.eventName,
-      `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(session.closingTime)})`,
+      `${formatDisplayDate(session.eventDate)} (${formatTime12h(session.openingTime)} - ${formatTime12h(closeTime)})`,
       `light-nation-${session.eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       "png",
     );
@@ -255,7 +259,7 @@ export default function QrCodeModal({
             <span className="tabular inline-flex items-center gap-1.5">
               <ClockIcon className="size-3.5 text-brand-600 dark:text-brand-400" />
               {formatTime12h(session.openingTime)} –{" "}
-              {formatTime12h(session.closingTime)}
+              {activeTab === "protocol" ? formatTime12h(session.protocolClosingTime) : formatTime12h(session.closingTime)}
             </span>
             <span className="tabular inline-flex items-center gap-1.5 font-medium text-(--ln-fg-primary)">
               <UsersIcon className="size-3.5 text-brand-600 dark:text-brand-400" />
